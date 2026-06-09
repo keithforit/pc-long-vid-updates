@@ -2221,7 +2221,7 @@ app.post('/ffmpeg-install', (req, res) => {
 // ─────────────────────────────────────────
 // AUTO-UPDATE ROUTES
 // ─────────────────────────────────────────
-const UPDATE_REPO_RAW = 'https://raw.githubusercontent.com/keithforit/pc-auto-vid-updates/main';
+const UPDATE_REPO_RAW = 'https://raw.githubusercontent.com/keithforit/pc-long-vid-updates/main';
 const UPDATABLE_FILES = ['index.html', 'server.js', 'parser-captions.js', 'parser.js'];
 
 function getLocalVersion() {
@@ -2287,8 +2287,6 @@ app.post('/apply-update', async (req, res) => {
         const versionBuf = await downloadFile(`${UPDATE_REPO_RAW}/version-long.json?t=${Date.now()}`);
         const remote = JSON.parse(versionBuf.toString());
         const filesToUpdate = remote.files || UPDATABLE_FILES;
-        // Never apply fileMap here — pc-auto-vid keeps long-index.html as long-index.html
-        // (fileMap is for pc-long-vid which has no long-index.html and needs index.html)
         for (let idx = 0; idx < filesToUpdate.length; idx++) {
             const remoteFile = filesToUpdate[idx];
             const localFile  = remoteFile;

@@ -65,6 +65,12 @@
     .done-title{font-size:13px;font-weight:700;color:#34d399}
     .done-file{font-size:11px;color:#6b7280;max-width:290px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .hidden{display:none!important}
+    .tip{
+      width:100%;font-size:11px;color:#6b7280;line-height:1.5;
+      background:#1f2937;border:1px solid #374151;border-radius:7px;
+      padding:8px 12px;text-align:left;
+    }
+    .tip strong{color:#d1d5db}
   </style>
 </head>
 <body>
@@ -82,6 +88,7 @@
     <div class="row center">
       <button id="btn-start" class="btn-rec" onclick="rcStart()">⏺ Start Recording</button>
     </div>
+    <div id="rc-tip" class="tip"></div>
   </div>
 
   <!-- Recording -->
@@ -134,6 +141,7 @@
         cant_start:   'Could not start recording: ',
         no_server:    'Could not reach the server — please make sure the app is running, then try again.',
         no_ffmpeg:    '⚠️ Saved as WebM (ffmpeg not installed). Install ffmpeg for MP4: brew install ffmpeg',
+        tip:          'In the Chrome picker:<br>① Click <strong>Entire Screen</strong> (not Window or Tab)<br>② Toggle <strong>Also share system audio</strong> ON to record computer sound',
       },
       ja: {
         quality_low:  '低画質',
@@ -151,6 +159,7 @@
         no_server:    'サーバーに接続できませんでした — アプリが起動しているか確認して、もう一度お試しください。',
         no_ffmpeg:    '⚠️ WebMで保存しました（ffmpegが未インストール）。MP4に変換するには: brew install ffmpeg',
         cant_start:   '録画を開始できませんでした: ',
+        tip:          'Chrome の画面選択で:<br>① <strong>画面全体</strong> を選択（Window や Tab ではなく）<br>② <strong>システム音声も共有</strong> をONにするとPC音が録音されます',
       },
     };
     const t = I18N[_lang] || I18N.en;
@@ -166,12 +175,13 @@
     document.getElementById('rc-saved-title').textContent = t.saved;
     document.getElementById('rc-download-link').textContent = t.download;
     document.getElementById('btn-again').textContent   = t.again;
+    document.getElementById('rc-tip').innerHTML = t.tip;
 
     let _rec = null, _stream = null, _displayStream = null, _micTracks = [];
     let _sessionId = null, _timerInterval = null;
 
     const SZ = {
-      idle: [480, 430],
+      idle: [480, 300],
       rec:  [320, 230],
       done: [320, 270],
     };
@@ -327,6 +337,7 @@
     }
 
     show('panel-idle');
+    resize('idle');
   </script>
 </body>
 </html>
