@@ -1,7 +1,7 @@
 {
-  "version": "1.3.10",
+  "version": "1.3.11",
   "date": "2026-06-09",
-  "notes": "Default video size to 16:9 (1920x1080) throughout",
+  "notes": "Add Step 4 scene editor between split and render in Long Video tab",
   "files": [
     "index.html",
     "server.js",

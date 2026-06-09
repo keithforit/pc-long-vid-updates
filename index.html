@@ -650,6 +650,11 @@
     .lv-split-tab { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
     .lv-split-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
     #lv-timeline { position: relative; height: 44px; background: var(--bg-input); border-radius: 8px; overflow: hidden; cursor: pointer; margin-bottom: 10px; border: 1px solid var(--border); }
+    .lv-scene-item { display:flex;flex-direction:column;gap:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px; }
+    .lv-scene-item-header { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+    .lv-scene-badge { font-size:11px;font-weight:700;background:var(--accent);color:#fff;border-radius:5px;padding:2px 8px;flex-shrink:0; }
+    .lv-scene-dur { font-size:11px;color:var(--text-muted);flex-shrink:0; }
+    .lv-scene-caption { width:100%;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-mid);border-radius:7px;padding:8px;font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;min-height:54px; }
     .lv-timeline-fill { position: absolute; left: 0; top: 0; height: 100%; background: rgba(16,185,129,0.18); pointer-events: none; }
     .lv-timeline-playhead { position: absolute; top: 0; width: 2px; height: 100%; background: #10b981; pointer-events: none; transition: left 0.1s linear; }
     .lv-marker { position: absolute; top: 0; width: 2px; height: 100%; background: #ef4444; cursor: pointer; z-index: 2; }
@@ -825,9 +830,24 @@
       </div>
     </div>
 
-    <!-- RENDER (Step 4) -->
+    <!-- SCENE EDIT (Step 4) -->
     <div id="lv-step4" class="lv-section" style="display:none">
-      <h3 data-i18n="lv_render_title">🎬 Step 4: Render Long Video</h3>
+      <h3>🎬 Step 4: Edit Scenes</h3>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <p style="font-size:13px;color:var(--text-muted);margin:0;flex:1">Edit captions for each scene. Leave blank to render without text overlay.</p>
+        <button class="btn ghost sm" onclick="switchTab('editor')" style="flex-shrink:0">🖊 Full Scene Editor</button>
+      </div>
+      <div id="lv-scenes-list" style="max-height:520px;overflow-y:auto;padding-right:4px"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn blue" onclick="lvSaveAllCaptions()">💾 Save Captions</button>
+        <div id="lv-captions-status" style="font-size:12px;color:var(--text-muted)"></div>
+        <button class="btn" onclick="document.getElementById('lv-step5').style.display='';this.closest('#lv-step4').scrollIntoView({behavior:'smooth',block:'end'})" style="margin-left:auto">Continue to Render →</button>
+      </div>
+    </div>
+
+    <!-- RENDER (Step 5) -->
+    <div id="lv-step5" class="lv-section" style="display:none">
+      <h3 data-i18n="lv_render_title">🎬 Step 5: Render Long Video</h3>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <label style="font-size:13px;color:var(--text-soft)" data-i18n="lv_batch_size">Scenes per batch:</label>
         <select id="lv-batch-size" style="width:auto;padding:6px 10px">
@@ -10308,6 +10328,7 @@
       const doneMsg = typeof t.lv_split_done === 'function' ? t.lv_split_done(data.chunkCount) : `Split into ${data.chunkCount} scenes.`;
       statusEl.textContent = doneMsg;
       document.getElementById('lv-step4').style.display = '';
+      lvLoadScenes();
     } catch(err) {
       statusEl.textContent = '❌ ' + err.message;
     } finally {
@@ -10335,12 +10356,64 @@
       statusEl.textContent = doneMsg;
       splitBtn.disabled    = false;
       document.getElementById('lv-step4').style.display = '';
+      lvLoadScenes();
     });
     socket.once('lv-split-error', (err) => {
       socket.off('lv-split-log'); socket.off('lv-split-progress');
       statusEl.textContent = '❌ ' + (err.message || err);
       splitBtn.disabled    = false;
     });
+  }
+
+  async function lvLoadScenes() {
+    const list = document.getElementById('lv-scenes-list');
+    if (!list) return;
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Loading scenes…</p>';
+    try {
+      const res  = await fetch(`/segments?t=${Date.now()}`, { cache: 'no-store' });
+      const segs = await res.json();
+      if (!Array.isArray(segs) || !segs.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No scenes found — split a video first.</p>';
+        return;
+      }
+      list.innerHTML = '';
+      segs.forEach((seg, i) => {
+        const card = document.createElement('div');
+        card.className = 'lv-scene-item';
+        const dur = seg.video_duration || seg.duration || 0;
+        const file = seg.background_url || '';
+        const videoSrc = file ? `/backgrounds/${encodeURIComponent(file)}` : '';
+        card.innerHTML = `
+          <div class="lv-scene-item-header">
+            <span class="lv-scene-badge">Scene ${i + 1}</span>
+            <span class="lv-scene-dur">${dur.toFixed ? dur.toFixed(1) : dur}s</span>
+            <span style="font-size:11px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${file}</span>
+          </div>
+          ${videoSrc ? `<video src="${videoSrc}" preload="metadata" controls style="width:100%;max-height:130px;border-radius:6px;object-fit:contain;background:#000"></video>` : ''}
+          <textarea class="lv-scene-caption" data-idx="${i}" placeholder="Caption (optional — leave blank for no text overlay)">${escapeHtml ? escapeHtml(seg.text || '') : (seg.text || '')}</textarea>`;
+        list.appendChild(card);
+      });
+    } catch (err) {
+      list.innerHTML = `<p style="color:#fca5a5;font-size:13px">Error loading scenes: ${err.message}</p>`;
+    }
+  }
+
+  async function lvSaveAllCaptions() {
+    const statusEl = document.getElementById('lv-captions-status');
+    const inputs = document.querySelectorAll('#lv-scenes-list .lv-scene-caption');
+    if (!inputs.length) { statusEl.textContent = 'No scenes to save.'; return; }
+    statusEl.textContent = 'Saving…';
+    let failed = 0;
+    for (const ta of inputs) {
+      const idx = parseInt(ta.dataset.idx);
+      try {
+        await fetch('/update-scene-texts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: idx, text: ta.value }),
+        });
+      } catch (_) { failed++; }
+    }
+    statusEl.textContent = failed ? `⚠️ ${failed} scene(s) failed to save` : `✅ ${inputs.length} scene(s) saved`;
   }
 
   function lvStartRender() {
