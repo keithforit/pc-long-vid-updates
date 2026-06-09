@@ -181,9 +181,10 @@
     let _sessionId = null, _timerInterval = null;
 
     const SZ = {
-      idle: [480, 300],
-      rec:  [320, 230],
-      done: [320, 270],
+      idle:    [480, 300],
+      picking: [520, 560],
+      rec:     [320, 230],
+      done:    [320, 270],
     };
     function resize(key) {
       const [w, h] = SZ[key];
@@ -203,6 +204,7 @@
       setStatus(t.requesting);
       _displayStream = null; _micTracks = [];
       try {
+        resize('picking');
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
           video: { frameRate: 30, displaySurface: 'monitor' },
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
