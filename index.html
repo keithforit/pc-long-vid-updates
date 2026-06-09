@@ -1187,7 +1187,7 @@
       <h3 data-i18n="settings_video_size">📐 Video Size</h3>
       <div class="field-label" data-i18n="settings_output_format">Choose output format</div>
       <div class="video-size-grid">
-        <div class="video-size-card active" id="videoSizeCard-9-16" onclick="selectVideoSizePreset('9:16')">
+        <div class="video-size-card" id="videoSizeCard-9-16" onclick="selectVideoSizePreset('9:16')">
           <div class="video-size-shape-wrap"><div class="video-size-shape preset-9-16"></div></div>
           <div class="video-size-label">9:16</div>
           <div class="video-size-meta">1080px × 1920px<br>TikTok / Shorts</div>
@@ -1197,13 +1197,13 @@
           <div class="video-size-label">1:1</div>
           <div class="video-size-meta">1080px × 1080px<br><span data-i18n="square">Square</span></div>
         </div>
-        <div class="video-size-card" id="videoSizeCard-16-9" onclick="selectVideoSizePreset('16:9')">
+        <div class="video-size-card active" id="videoSizeCard-16-9" onclick="selectVideoSizePreset('16:9')">
           <div class="video-size-shape-wrap"><div class="video-size-shape preset-16-9"></div></div>
           <div class="video-size-label">16:9</div>
           <div class="video-size-meta">1920px × 1080px<br><span data-i18n="landscape">Landscape</span></div>
         </div>
       </div>
-      <div id="videoSizeSummary" style="font-size:12px;color:#94a3b8;margin-top:10px;line-height:1.5;">9:16 (1080px × 1920px)</div>
+      <div id="videoSizeSummary" style="font-size:12px;color:#94a3b8;margin-top:10px;line-height:1.5;">16:9 (1920px × 1080px)</div>
     </div>
 
     <button class="btn full" id="saveSettingsBtn" onclick="saveSettings()" data-i18n="settings_save">💾 Save Settings</button>
@@ -3264,9 +3264,9 @@
       textStrokeSize:  parseFloat(document.getElementById('textStrokeSizeRange').value) || 0,
       boxBorderRadius: parseInt(document.getElementById('boxRadiusRange').value) || 20,
       blockBorderRadius: parseInt(document.getElementById('blockRadiusRange').value) || 10,
-      videoSizePreset: currentSettings.videoSizePreset || '9:16',
-      outputWidth: currentSettings.outputWidth || 1080,
-      outputHeight: currentSettings.outputHeight || 1920,
+      videoSizePreset: currentSettings.videoSizePreset || '16:9',
+      outputWidth: currentSettings.outputWidth || 1920,
+      outputHeight: currentSettings.outputHeight || 1080,
       backgroundMusicRandom: document.getElementById('bgMusicRandom').value === 'yes',
       backgroundMusicFile: document.getElementById('bgMusicFileSelect').value,
       backgroundMusicUseCustom: document.getElementById('bgMusicUseCustom').checked,
