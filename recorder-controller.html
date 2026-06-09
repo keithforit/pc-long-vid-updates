@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Recorder</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      height:100%;
+      background:#111827;
+      color:#f9fafb;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      user-select:none;
+      overflow:hidden;
+    }
+    body{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:14px 16px;
+      gap:10px;
+    }
+    .panel{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+    .row{display:flex;align-items:center;gap:8px;width:100%}
+    .center{justify-content:center}
+    select{
+      flex:1;
+      font-size:12px;border-radius:6px;
+      border:1px solid #374151;background:#1f2937;color:#d1d5db;
+      padding:5px 8px;cursor:pointer;
+    }
+    label{font-size:12px;color:#9ca3af;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+    input[type=checkbox]{cursor:pointer;accent-color:#dc2626}
+    button{
+      font-size:13px;font-weight:600;border-radius:7px;
+      border:1px solid #4b5563;background:#1f2937;color:#f9fafb;
+      padding:6px 16px;cursor:pointer;transition:opacity .15s;
+    }
+    button:hover{opacity:.85}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .btn-rec{background:#dc2626;border-color:#dc2626;padding:7px 20px;font-size:14px}
+    .btn-stop{background:#374151;border-color:#6b7280;padding:7px 20px;font-size:14px}
+    .btn-sm{font-size:12px;padding:5px 14px}
+    .btn-dl{
+      display:inline-block;font-size:12px;font-weight:600;
+      padding:5px 14px;border-radius:7px;
+      background:#2563eb;border:1px solid #3b82f6;
+      color:#fff;text-decoration:none;cursor:pointer;
+      transition:opacity .15s;
+    }
+    .btn-dl:hover{opacity:.85}
+    #timer{
+      font-size:26px;font-weight:700;
+      font-variant-numeric:tabular-nums;letter-spacing:1px;
+      color:#f9fafb;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:#ef4444;flex-shrink:0;
+      animation:pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+    #status{font-size:11px;color:#6b7280;height:14px;text-align:center}
+    .done-title{font-size:13px;font-weight:700;color:#34d399}
+    .done-file{font-size:11px;color:#6b7280;max-width:290px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .hidden{display:none!important}
+  </style>
+</head>
+<body>
+
+  <!-- Idle -->
+  <div id="panel-idle" class="panel">
+    <div class="row">
+      <select id="rc-quality">
+        <option id="rc-opt-low" value="low">Low quality</option>
+        <option id="rc-opt-med" value="med" selected>Medium quality</option>
+        <option id="rc-opt-high" value="high">High quality</option>
+      </select>
+      <label><input type="checkbox" id="rc-mic" checked> <span id="rc-mic-label">Mic</span></label>
+    </div>
+    <div class="row center">
+      <button id="btn-start" class="btn-rec" onclick="rcStart()">⏺ Start Recording</button>
+    </div>
+  </div>
+
+  <!-- Recording -->
+  <div id="panel-rec" class="panel hidden">
+    <div class="row center" style="gap:12px">
+      <div class="dot"></div>
+      <span id="timer">00:00:00</span>
+    </div>
+    <div class="row center">
+      <button id="btn-stop" class="btn-stop" onclick="rcStop()">⏹ Stop Recording</button>
+    </div>
+  </div>
+
+  <!-- Finalizing -->
+  <div id="panel-final" class="panel hidden">
+    <div id="rc-saving-text" style="font-size:13px;color:#9ca3af">⏳ Saving recording…</div>
+  </div>
+
+  <!-- Done -->
+  <div id="panel-done" class="panel hidden">
+    <div id="rc-saved-title" class="done-title">✅ Recording saved</div>
+    <div id="rc-done-file" class="done-file"></div>
+    <div class="row center" style="gap:8px">
+      <a id="rc-download-link" href="#" class="btn-dl">⬇ Download</a>
+      <button id="btn-again" class="btn-sm" onclick="rcReset()">Record again</button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <script>
+    const bc = new BroadcastChannel('sr-controller');
+
+    const _lang = new URLSearchParams(location.search).get('lang')
+      || (navigator.language.startsWith('ja') ? 'ja' : 'en');
+    const I18N = {
+      en: {
+        quality_low:  'Low quality',
+        quality_med:  'Medium quality',
+        quality_high: 'High quality',
+        mic:          'Mic',
+        start:        '⏺ Start Recording',
+        stop:         '⏹ Stop Recording',
+        saving:       '⏳ Saving recording…',
+        saved:        '✅ Recording saved',
+        download:     '⬇ Download',
+        again:        'Record again',
+        requesting:   'Requesting screen access…',
+        save_failed:  'Save failed: ',
+        cant_start:   'Could not start recording: ',
+        no_server:    'Could not reach the server — please make sure the app is running, then try again.',
+        no_ffmpeg:    '⚠️ Saved as WebM (ffmpeg not installed). Install ffmpeg for MP4: brew install ffmpeg',
+      },
+      ja: {
+        quality_low:  '低画質',
+        quality_med:  '中画質',
+        quality_high: '高画質',
+        mic:          'マイク',
+        start:        '⏺ 録画開始',
+        stop:         '⏹ 録画停止',
+        saving:       '⏳ 保存中…',
+        saved:        '✅ 録画が保存されました',
+        download:     '⬇ ダウンロード',
+        again:        '再録画',
+        requesting:   '画面アクセスを要求中…',
+        save_failed:  '保存に失敗しました: ',
+        no_server:    'サーバーに接続できませんでした — アプリが起動しているか確認して、もう一度お試しください。',
+        no_ffmpeg:    '⚠️ WebMで保存しました（ffmpegが未インストール）。MP4に変換するには: brew install ffmpeg',
+        cant_start:   '録画を開始できませんでした: ',
+      },
+    };
+    const t = I18N[_lang] || I18N.en;
+
+    // Apply translations to static elements
+    document.getElementById('rc-opt-low').textContent  = t.quality_low;
+    document.getElementById('rc-opt-med').textContent  = t.quality_med;
+    document.getElementById('rc-opt-high').textContent = t.quality_high;
+    document.getElementById('rc-mic-label').textContent = t.mic;
+    document.getElementById('btn-start').textContent   = t.start;
+    document.getElementById('btn-stop').textContent    = t.stop;
+    document.getElementById('rc-saving-text').textContent = t.saving;
+    document.getElementById('rc-saved-title').textContent = t.saved;
+    document.getElementById('rc-download-link').textContent = t.download;
+    document.getElementById('btn-again').textContent   = t.again;
+
+    let _rec = null, _stream = null, _displayStream = null, _micTracks = [];
+    let _sessionId = null, _timerInterval = null;
+
+    const SZ = {
+      idle: [480, 430],
+      rec:  [320, 230],
+      done: [320, 270],
+    };
+    function resize(key) {
+      const [w, h] = SZ[key];
+      window.resizeTo(w, h);
+      window.moveTo(screen.width - w - 20, 20);
+    }
+
+    function show(id) {
+      ['panel-idle','panel-rec','panel-final','panel-done'].forEach(p =>
+        document.getElementById(p).classList.toggle('hidden', p !== id));
+    }
+    function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+    async function rcStart() {
+      const btn = document.getElementById('btn-start');
+      btn.disabled = true;
+      setStatus(t.requesting);
+      _displayStream = null; _micTracks = [];
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30, displaySurface: 'monitor' },
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+        _displayStream = displayStream;
+        resize('rec');
+
+        // Try to reach the server — retry once if the first attempt fails (e.g. mid-restart)
+        let startRes;
+        try {
+          startRes = await fetch('/screen-record/start', { method: 'POST' });
+        } catch (_) {
+          await new Promise(r => setTimeout(r, 1500));
+          startRes = await fetch('/screen-record/start', { method: 'POST' });
+        }
+        const { sessionId, error: startErr } = await startRes.json();
+        if (!startRes.ok || !sessionId) throw new Error(startErr || 'Server could not start session');
+        _sessionId = sessionId;
+
+        const sysAudio = displayStream.getAudioTracks();
+        const micOn = document.getElementById('rc-mic').checked;
+        let micTracks = [];
+        if (micOn) {
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            micTracks = micStream.getAudioTracks();
+            _micTracks = micTracks;
+          } catch (_) {}
+        }
+
+        let finalAudio = [];
+        if (sysAudio.length > 0 && micTracks.length > 0) {
+          const ctx = new AudioContext();
+          const dest = ctx.createMediaStreamDestination();
+          ctx.createMediaStreamSource(new MediaStream(sysAudio)).connect(dest);
+          ctx.createMediaStreamSource(new MediaStream(micTracks)).connect(dest);
+          finalAudio = dest.stream.getAudioTracks();
+        } else {
+          finalAudio = [...sysAudio, ...micTracks];
+        }
+
+        _stream = new MediaStream([...displayStream.getVideoTracks(), ...finalAudio]);
+
+        const bitrateMap = { low: 1_000_000, med: 3_000_000, high: 6_000_000 };
+        const bitrate = bitrateMap[document.getElementById('rc-quality').value] || 3_000_000;
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+          ? 'video/webm;codecs=vp9,opus' : 'video/webm;codecs=vp8,opus';
+
+        _rec = new MediaRecorder(_stream, { mimeType, videoBitsPerSecond: bitrate });
+
+        _rec.ondataavailable = async (e) => {
+          if (e.data.size === 0) return;
+          try {
+            await fetch(`/screen-record/chunk/${_sessionId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream' },
+              body: e.data,
+            });
+          } catch (_) {}
+        };
+
+        _rec.onstop = async () => {
+          _stream.getTracks().forEach(t => t.stop());
+          _micTracks.forEach(t => t.stop());
+          _displayStream = null; _micTracks = [];
+          clearInterval(_timerInterval);
+          show('panel-final');
+          setStatus('');
+          try {
+            const res = await fetch(`/screen-record/stop/${_sessionId}`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok || !data.filename) throw new Error(data.error || 'Conversion failed');
+            bc.postMessage({ type: 'recording-done', filename: data.filename, size: data.size });
+            const mb = data.size ? ` — ${(data.size / 1024 / 1024).toFixed(0)} MB` : '';
+            document.getElementById('rc-done-file').textContent = data.filename + mb;
+            if (data.noFfmpeg) setStatus(t.no_ffmpeg);
+            const link = document.getElementById('rc-download-link');
+            link.href = `/screen-record/download/${data.filename}`;
+            link.setAttribute('download', data.filename);
+            resize('done');
+            show('panel-done');
+          } catch (err) {
+            setStatus(t.save_failed + err.message);
+            resize('idle');
+            show('panel-idle');
+          }
+          btn.disabled = false;
+        };
+
+        displayStream.getVideoTracks()[0].addEventListener('ended', () => {
+          if (_rec && _rec.state !== 'inactive') _rec.stop();
+        });
+
+        _rec.start(30_000);
+
+        const t0 = Date.now();
+        _timerInterval = setInterval(() => {
+          const s = Math.floor((Date.now() - t0) / 1000);
+          const h = String(Math.floor(s / 3600)).padStart(2, '0');
+          const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+          const sc = String(s % 60).padStart(2, '0');
+          document.getElementById('timer').textContent = `${h}:${m}:${sc}`;
+        }, 1000);
+
+        show('panel-rec');
+        setStatus('');
+
+      } catch (e) {
+        if (_displayStream) { _displayStream.getTracks().forEach(t => t.stop()); _displayStream = null; }
+        _micTracks.forEach(t => t.stop()); _micTracks = [];
+        btn.disabled = false;
+        setStatus('');
+        resize('idle');
+        if (e.name !== 'NotAllowedError') {
+          const msg = e.message === 'Failed to fetch' ? t.no_server : t.cant_start + e.message;
+          alert(msg);
+        }
+        show('panel-idle');
+      }
+    }
+
+    function rcStop() {
+      if (_rec && _rec.state !== 'inactive') _rec.stop();
+      if (_stream) _stream.getTracks().forEach(t => t.stop());
+      _micTracks.forEach(t => t.stop());
+    }
+
+    function rcReset() {
+      resize('idle');
+      show('panel-idle');
+      setStatus('');
+    }
+
+    show('panel-idle');
+  </script>
+</body>
+</html>
